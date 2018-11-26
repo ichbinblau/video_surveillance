@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Dashboard</title>
+	<script src="https://unpkg.com/vue"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.2/mqttws31.min.js"></script>
+    <script src="config.js" type="text/javascript"></script>
+	<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+</head>
+<body>
+	<div class="container">
+		<div id="app">
+			<button id="show-modal" @click="showModal = true">Show Modal</button>
+  			<!-- use the modal component, pass in the prop -->
+  			<modal v-if="showModal" @close="showModal = false">
+    		<!--you can use custom content here to overwrite
+      			default content
+    		-->
+              <div slot="body" class="media">
+                <video style="width:100%;height:100%;" controls autoplay :src="videoSource"></video>
+                <pre>src={{ videoSource }}</pre>
+              </div>
+  			</modal>
+        <mqttws></mqttws>
+		</div>
+	</div>
+<script type="text/x-template" id="modal-template">
+  <transition name="modal">
+    <div class="modal-mask">
+      <div class="modal-wrapper">
+        <div class="modal-container">
+
+          <!--<div class="modal-header">
+            <slot name="header">
+              default header
+            </slot>
+          </div>-->
+
+          <div class="modal-body">
+            <slot name="body">
+              default body
+            </slot>
+          </div>
+
+          <div class="modal-footer">
+            <slot name="footer">
+              <button class="modal-default-button" @click="$emit('close')">
+                OK
+              </button>
+            </slot>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </transition>
+</script>
+
+<script>
+	Vue.component('modal', {
+  		template: '#modal-template',
+	})
+
+  Vue.component('mqttws', {
+      template: '<div>Message: <p>{{ msg }}</p></div>',
+      data() {
+          return {
+              reconnectTimeout: 2000,
+              mqtt: {},
+              msg:"",
+          }
+      },
+      mounted() {
+            this.MQTTconnect();
+      },
+      methods: {
+            addtopic(msg) {
+                this.msg = msg.msg;
+            },
+
+            //实时通信
+            MQTTconnect() {
+                this.mqtt = new Paho.MQTT.Client(  //实例化一个对象
+                    host,
+                    port,
+                    path,
+                    "client" + this.getuuid(),  //防止多个浏览器打开，导致的问题，保证唯一性
+                );
+                var options = { 
+                    timeout: 10,
+                    useSSL: useTLS,
+                    cleanSession: cleansession,
+                   //如果为false(flag=0)，Client断开连接后，Server应该保存Client的订阅信息。如果为true(flag=1)，表示Server应该立刻丢弃任何会话状态信息。
+                    onSuccess: this.onConnect,
+                    onFailure: function(message) {
+                        //连接失败定时重连
+                        setTimeout(this.MQTTconnect, this.reconnectTimeout);
+                    }
+                };
+                this.mqtt.onConnectionLost = this.onConnectionLost;
+                this.mqtt.onMessageArrived = this.onMessageArrived;
+                //用户名和密码的验证，我这里都为空；不加验证
+                if (username != null) {
+                    options.userName = username;
+                    options.password = password;
+                }
+                this.mqtt.connect(options);
+            },
+            //uuid随机生成
+            getuuid() {
+                var uid = [];
+                var hexDigits = "0123456789abcdefghijklmnopqrst";
+                for (var i = 0; i < 32; i++) {
+                    uid[i] = hexDigits.substr(Math.floor(Math.random() * 0x10), 1);
+                }
+                uid[6] = "4";
+                uid[15] = hexDigits.substr((uid[15] & 0x3) | 0x8, 1);
+                var uuid = uid.join("");
+                return uuid;
+            },
+            //连接
+            onConnect() {
+                console.log("Connected to " + host + ":" + port + path);
+                //连接成功，订阅主题
+                this.mqtt.subscribe(topic, {
+                    qos: 2  
+                  //QoS0，最多一次送达。也就是发出去就fire掉，没有后面的事情了。
+                 // QoS1，至少一次送达。发出去之后必须等待ack，没有ack，就要找时机重发
+                 // QoS2，准确一次送达。消息id将拥有一个简单的生命周期。
+                });
+               
+                //发布一个消息，再连接成功后，发送一个响应，确保连接没有问题；
+                //this.mqtt.send("login", "{\"command\":\"login\",\"clientId\":\"" + this.mqtt.clientId + "\"}", 0);
+            },
+            //连接丢失
+            onConnectionLost(response) {
+                //console.log("异常掉线，掉线信息为:" + response.errorMessage);
+                setTimeout(this.MQTTconnect, this.reconnectTimeout);
+            },
+    
+            //接收到消息，处理
+            onMessageArrived(message) {
+                var topics = message.destinationName;
+                var msg = JSON.parse(message.payloadString);
+                console.log(msg);
+                //判断主题，调用方法，这里可以订阅多个主题，在此处判断，接受不同的主题，调用不同的方法！
+                if (topics == topic) {
+                    //添加
+                    this.addtopic(msg);
+                }else {
+                    return;
+                }
+            },
+      }     
+  })
+
+	// start app
+	new Vue({
+  		el: '#app',
+  		data: {
+    		showModal: false,
+        videoSource: 'http://10.239.82.98/video/x264-output.mp4'
+  		},
+		
+		
+})
+</script>
+<style>
+.modal-mask {
+  position: fixed;
+  z-index: 9998;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, .5);
+  display: table;
+  transition: opacity .3s ease;
+}
+
+.modal-wrapper {
+  display: table-cell;
+  vertical-align: middle;
+}
+
+.modal-container {
+  width: 800px;
+  margin: 0px auto;
+  padding: 20px 30px;
+  background-color: #fff;
+  border-radius: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .33);
+  transition: all .3s ease;
+  font-family: Helvetica, Arial, sans-serif;
+}
+
+.modal-header h3 {
+  margin-top: 0;
+  color: #42b983;
+}
+
+.modal-body {
+  margin: 20px 0;
+}
+
+.modal-default-button {
+  float: right;
+}
+
+/*
+ * The following styles are auto-applied to elements with
+ * transition="modal" when their visibility is toggled
+ * by Vue.js.
+ *
+ * You can easily play with the modal transition by editing
+ * these styles.
+ */
+
+.modal-enter {
+  opacity: 0;
+}
+
+.modal-leave-active {
+  opacity: 0;
+}
+
+.modal-enter .modal-container,
+.modal-leave-active .modal-container {
+  -webkit-transform: scale(1.1);
+  transform: scale(1.1);
+}
+
+</style>
+</body>
+</html>
+
+
