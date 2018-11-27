@@ -1,5 +1,5 @@
 // host = '172.16.153.122';	// hostname or IP address
-host = '10.239.76.185';	// hostname or IP address
+host = '10.239.82.98';	// hostname or IP address
 // host = '172.16.153.110';	// hostname or IP address
 port = 9001;
 topic = 'detected_objects';		// topic to subscribe to
@@ -13,7 +13,7 @@ password = null;
 //    defaults to "/mqtt"
 //    may include query and fragment
 //
-// path = "/mqtt";
+path = "/";
 // path = "/data/cloud?device=12345";
 
 cleansession = true;

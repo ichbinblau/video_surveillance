@@ -70,39 +70,39 @@ def frames2video(save_name):
     fps = 15
     #fourcc = cv2.VideoWriter_fourcc(*'FMP4')
     #fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    #fourcc = 0x00000021 
-    #video_writer = cv2.VideoWriter(save_name, fourcc, fps, (CAMERA_REQUEST_VID_WIDTH, CAMERA_REQUEST_VID_HEIGHT), isColor=True)
+    fourcc = 0x00000021 
+    video_writer = cv2.VideoWriter(save_name, fourcc, fps, (CAMERA_REQUEST_VID_WIDTH, CAMERA_REQUEST_VID_HEIGHT), isColor=True)
     #video_writer = cv2.VideoWriter(save_name, 0x00000021, fps, (CAMERA_REQUEST_VID_WIDTH, CAMERA_REQUEST_VID_HEIGHT))
-    import subprocess
-    from PIL import Image 
-    from io import BytesIO
-    ffmpeg_cmd_str = "ffmpeg -loop 0 -f image2pipe -s 640*480 -r 20 -i- -c:v libx264 -pix_fmt yuv420p -y output.mp4"
-    ffmpeg_cmd = [
-            'ffmpeg',
+    #import subprocess
+    #from PIL import Image 
+    #from io import BytesIO
+    #ffmpeg_cmd_str = "ffmpeg -loop 0 -f image2pipe -s 640*480 -r 20 -i- -c:v libx264 -pix_fmt yuv420p -y output.mp4"
+    #ffmpeg_cmd = [
+    #        'ffmpeg',
             #'-loop', '0',
-            '-f', 'rawvideo',
-            '-pixel_format', 'bgr24'
-            '-s', '640*480',
-            '-r', '20',
-            '-an', # no audio
-            '-i', '-', 
-            '-c:v', 'libx264',
-            '-pix_fmt', 'yuv420p',
-            '-y', 'output.mp4'
-            ]
+    #        '-f', 'rawvideo',
+    #        '-pixel_format', 'bgr24'
+    #        '-s', '640*480',
+    #        '-r', '20',
+    #        '-an', # no audio
+    #        '-i', '-', 
+    #        '-c:v', 'libx264',
+    #        '-pix_fmt', 'yuv420p',
+    #        '-y', 'output.mp4'
+    #        ]
     #print(" ".join(ffmpeg_cmd))
     obj_lst = r.zrangebyscore('cam1', 0, '+inf')
     #wc = subprocess.Popen(ffmpeg_cmd_str.split(' '), stdin=subprocess.PIPE)
-    wc = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE)
+    #wc = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE)
     for frame in obj_lst:
-        #video_writer.write(pickle.loads(frame))
-        im = Image.frombuffer(data=pickle.loads(frame).tostring(), size=(640, 480), mode='RGB')
-        im.save(wc.stdin, 'PNG')
+        video_writer.write(pickle.loads(frame))
+        #im = Image.frombuffer(data=pickle.loads(frame).tostring(), size=(640, 480), mode='RGB')
+        #im.save(wc.stdin, 'PNG')
         #wc.stdin.write(pickle.loads(frame).tostring())
 
-    wc.stdin.close()
-    wc.wait()
-    #video_writer.release()
+    #wc.stdin.close()
+    #wc.wait()
+    video_writer.release()
 
 
 if __name__ == "__main__":

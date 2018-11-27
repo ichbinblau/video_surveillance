@@ -1,6 +1,6 @@
 import pickle
 import sys
-
+import json
 import cv2
 import numpy as np
 import redis
@@ -11,12 +11,18 @@ sys.path.append(".")
 from object_detection.utils import label_map_util
 from object_detection.utils import ops as utils_ops
 from object_detection.utils import visualization_utils as vis_util
+from mqtt_pub_sub import MqttClient
 
 
-PATH_TO_CKPT = "pre-trained-models/bigfoot/frozen_inference_graph.pb"
-PATH_TO_LABELS = "pre-trained-models/bigfoot/pascal_label_map.pbtxt"
-NUM_CLASSES = 2
-
+#PATH_TO_CKPT = "pre-trained-models/bigfoot/frozen_inference_graph.pb"
+#PATH_TO_LABELS = "pre-trained-models/bigfoot/pascal_label_map.pbtxt"
+#NUM_CLASSES = 2
+PATH_TO_CKPT = "ssd_mobilenet_v1_coco_2017_11_17/frozen_inference_graph.pb"
+PATH_TO_LABELS = "object_detection/data/mscoco_label_map.pbtxt"
+NUM_CLASSES = 90
+DETECTION_SET = (77, 47) # cup and cell phone
+ALERT_INTERVAL = 10 * 1000 # 5 seconds
+DETECT_THRESHOLD = 0.5
 
 detection_graph = tf.Graph()
 with detection_graph.as_default():
@@ -77,14 +83,27 @@ def run_inference_for_single_image(image, sess, graph):
    return output_dict
 
 r = redis.StrictRedis(host='localhost', port=6379, db=0)
+mqttc = MqttClient(name="detection", pub_only=True)
+mqttc.start()
+last_timestamp = {}
+
+
+def get_detected_classes(boxes, classes, scores):
+    detected = []
+    for i in range(boxes.shape[0]):
+        if not scores is None and scores[i] > DETECT_THRESHOLD:
+            if not classes[i] in DETECTION_SET: continue
+            if not classes[i] in detected: detected.append(int(classes[i])) 
+    return detected        
+
 
 def get_frame():
     dic = r.hgetall('cam1-current')
-    #print(dic)
     frame = pickle.loads(dic[b'frame'])
-    #frame = pickle.loads(r.get('img'))
+    ts = int(dic[b'timestamp'])
+    # frame = pickle.loads(r.get('img'))
     output_dict = run_inference_for_single_image(frame, sess, detection_graph)
-    print(output_dict)
+    # print(output_dict)
     vis_util.visualize_boxes_and_labels_on_image_array(
         frame,
         output_dict['detection_boxes'],
@@ -95,5 +114,28 @@ def get_frame():
         use_normalized_coordinates=True,
         line_thickness=8)
     ret, frame = cv2.imencode('.jpg', frame)
+    class_ids = get_detected_classes(output_dict['detection_boxes'], output_dict['detection_classes'], output_dict['detection_scores'])
+    if class_ids:
+        # print(class_ids)
+        publish = False
+        for cid in class_ids:
+            if last_timestamp.get(cid) is None:
+                #print("Set class timestamp for class {} and sent alert.".format(cid))
+                last_timestamp[cid] = ts
+                publish = True
+                break
+            elif ts - last_timestamp.get(cid) <= ALERT_INTERVAL: continue
+            else:
+                last_timestamp[cid] = ts
+                publish = True
+                break
+        if publish:
+            data = { 
+                        'timestamp': ts,
+                        'class_id': class_ids,
+                        'camera_id': 1
+                    }
+            print("Sent alert for class {} at {} {}.".format(cid, ts, last_timestamp.get(cid)))
+            mqttc.publish(topic="detected_objects", msg=data)
     return frame.tostring()
 
