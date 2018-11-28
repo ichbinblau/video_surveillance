@@ -6,7 +6,9 @@
 	<script src="https://unpkg.com/vue"></script>
     <script src="//cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.2/mqttws31.min.js"></script>
     <script src="config.js" type="text/javascript"></script>
+    <script src="xhr.js" type="text/javascript"></script>
 	<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+	<link href="style.css" rel="stylesheet">
 </head>
 <body>
 	<div class="container">
@@ -34,8 +36,8 @@
       			default content
     		-->
               <div slot="body" class="media">
-                <video style="width:100%;height:100%;" controls autoplay :src="videoSource"></video>
-                <pre>src={{ videoSource }}</pre>
+                <video id="videoplayer" style="width:640px;height:480px;" controls autoplay>Your browser does not support the video element</video>
+                <!--<pre>src={{ videoSource }}</pre>-->
               </div>
   			</modal>
         <mqttws @onmessage="addrow"></mqttws>
@@ -117,7 +119,7 @@
 				msg.detected_objects = cls;
 				msg.datetime = timeConverter(payload.timestamp); 
                 msg.cameraid = payload.camera_id;
-                msg.source = payload.source;
+                msg.source = "video/cam" + msg.cameraid + "_" + payload.timestamp + ".mp4";
                 this.$emit("onmessage", msg);
             },
 
@@ -204,7 +206,6 @@
         	videoSource: 'http://10.239.82.98/video/x264-output.mp4',
 			headers: ['datetime', 'camera id', 'detected objects', 'details'],
 			alarms: [
-        {'datetime': '2018-11-19 17:18', 'cameraid': '1', 'detected_objects': 'person', 'source': 'http://10.239.82.98/video/x264-output.mp4'},
         {'datetime': '2018-11-19 17:18', 'cameraid': '1', 'detected_objects': 'cell phone', 'source': 'https://www.quirksmode.org/html5/videos/big_buck_bunny.mp4'},
         {'datetime': '2018-11-19 17:18', 'cameraid': '1', 'detected_objects': 'monitor', 'source': 'http://Video/Digital_Hiring.mp4'},
         {'datetime': '2018-11-19 17:18', 'cameraid': '1', 'detected_objects': 'person', 'source': 'http://Video/Digital_Hiring.mp4'},
@@ -214,7 +215,9 @@
         methods: {
             setNewValue: function (videoSrc) {
                 this.showModal = true;
-				this.videoSource = videoSrc;
+		//		this.videoSource = videoSrc;
+		getVideo(videoSrc);
+		this.videoSource = videoSrc;
             },
             addrow: function(dic) {
                 this.alarms.unshift(dic);
@@ -231,73 +234,5 @@
 		
 })
 </script>
-<style>
-.modal-mask {
-  position: fixed;
-  z-index: 9998;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, .5);
-  display: table;
-  transition: opacity .3s ease;
-}
-
-.modal-wrapper {
-  display: table-cell;
-  vertical-align: middle;
-}
-
-.modal-container {
-  width: 800px;
-  margin: 0px auto;
-  padding: 20px 30px;
-  background-color: #fff;
-  border-radius: 2px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, .33);
-  transition: all .3s ease;
-  font-family: Helvetica, Arial, sans-serif;
-}
-
-.modal-header h3 {
-  margin-top: 0;
-  color: #42b983;
-}
-
-.modal-body {
-  margin: 20px 0;
-}
-
-.modal-default-button {
-  float: right;
-}
-
-/*
- * The following styles are auto-applied to elements with
- * transition="modal" when their visibility is toggled
- * by Vue.js.
- *
- * You can easily play with the modal transition by editing
- * these styles.
- */
-
-.modal-enter {
-  opacity: 0;
-}
-
-.modal-leave-active {
-  opacity: 0;
-}
-
-.modal-enter .modal-container,
-.modal-leave-active .modal-container {
-  -webkit-transform: scale(1.1);
-  transform: scale(1.1);
-}
-
-</style>
 </body>
 </html>
-
-

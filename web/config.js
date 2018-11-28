@@ -1,4 +1,3 @@
-// host = '172.16.153.122';	// hostname or IP address
 host = '10.239.82.98';	// hostname or IP address
 // host = '172.16.153.110';	// hostname or IP address
 port = 9001;
