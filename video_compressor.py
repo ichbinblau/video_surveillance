@@ -5,26 +5,23 @@ import os
 import cv2
 import pickle
 import subprocess
+import requests
 from mqtt_pub_sub import MqttClient
 
 CAMERA_REQUEST_VID_WIDTH = 640
 CAMERA_REQUEST_VID_HEIGHT = 480
 OUTPUT_RATE = 20
 VIDEO_SERVER_PATH = "web/video/"
+REST_URL = "http://localhost:3000/api/v1/alerts"
 
 r = redis.StrictRedis(host='localhost', port=6379, db=0)
 
-
-def convert2mp4(filename):
-    subprocess.call([
-        'ffmpeg',
-        '-loglevel', 'panic',
-        '-i', filename,
-        '-an',
-        '-vcodec', 'libx264',
-        '-crf', '24',
-        "{}_h264.mp4".format(os.path.splitext(filename)[0])
-        ])
+def send_alerts(payload):
+    r = requests.post(REST_URL, headers={"ContentType": "application/json"}, json=payload)
+    if r.status_code == 201:
+        print("Record id {} created in mongodb".format(r.json().get("id")))
+    else:
+        print("Failed to update record (timestamp: {}) to DB ".format(payload.get("timestamp")))
 
 
 def frames2video(cam_id, timestamp):
@@ -55,6 +52,7 @@ def on_message(client, userdata, message):
     print(payload)
     try:
         frames2video(payload['camera_id'], payload['timestamp'])
+        send_alerts(payload)
     except Exception as e:
         # the exception must be handled otherwise it will quit the callback
         print(e.message)
