@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, Response
+from flask import Flask, jsonify, request, Response, abort
 from flask_pymongo import PyMongo
 from bson.json_util import dumps
 import traceback
@@ -44,13 +44,43 @@ def get_alerts():
     """
         Funtion to get latest 50 alerts 
     """
+    start = request.args.get('page', 1)
+    limit = request.args.get('per_page', 5)
+    if not start.isdigit() or not limit.isdigit():
+        abort(404)
     try:
-        alts = list(mongo.db.alerts.find().sort('timestamp', -1).limit(50))
+        #alts = list(mongo.db.alerts.find().sort('timestamp', -1).limit(50))
+        alts = get_paginated_alerts(request.base_url, int(start), int(limit))
         print(alts)
         return dumps(alts)
     except:
+        traceback.print_exc()
         return jsonify(error="Internal server error"), 500
 
+
+def get_paginated_alerts(url, start, limit):
+    result = list(mongo.db.alerts.find().skip((start-1)*limit).limit(limit).sort('timestamp', -1))
+    count = mongo.db.alerts.find().count()
+    if start > count or start < 1:
+        abort(404)
+    # construct response
+    obj = {}
+    obj['current_page'] = start
+    obj['per_page'] = limit
+    obj['total'] = count
+    # make URLs
+    if start == 1:
+        obj['prev_page_url'] = ''
+    else:
+        obj['prev_page_url'] = url + '?page=%d&per_page=%d' % (start - 1, limit)
+    # make next url
+    if start*limit + limit > count:
+        obj['next_page_url'] = ''
+    else:
+        obj['next_page_url'] = url + '?page=%d&per_page=%d' % (start + 1, limit)
+    obj['data'] = result
+    return obj
+    
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=3000)
