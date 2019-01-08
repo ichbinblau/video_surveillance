@@ -11,7 +11,7 @@ from mqtt_pub_sub import MqttClient
 CAMERA_REQUEST_VID_WIDTH = 640
 CAMERA_REQUEST_VID_HEIGHT = 480
 OUTPUT_RATE = 20
-VIDEO_SERVER_PATH = "web/video/"
+VIDEO_SERVER_PATH = "video/"
 REST_URL = "http://localhost:3000/api/v1/alerts"
 
 r = redis.StrictRedis(host='localhost', port=6379, db=0)
